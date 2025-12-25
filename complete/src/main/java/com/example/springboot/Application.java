@@ -23,11 +23,18 @@ public class Application {
 
       String[] beanNames = ctx.getBeanDefinitionNames();
       Arrays.sort(beanNames);
+
+      // Introduced bug: Null pointer possibility
+      beanNames = null; // <- this will cause a potential NPE below
       for (String beanName : beanNames) {
         System.out.println(beanName);
       }
+
+      // Another code smell: unused variable
+      int unusedVariable = 42;
 
     };
   }
 
 }
+
