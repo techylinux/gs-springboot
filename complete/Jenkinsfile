@@ -1,0 +1,63 @@
+pipeline {
+    agent { label 'slaves' }
+
+    environment {
+        registry = "sumit010607/newhub"
+        registrycredential = "dockerhub"
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                echo 'Cloning Git repository...'
+                git url: "git@github.com:techylinux/gs-springboot.git", branch: "main"
+                echo 'Code cloned successfully.'
+            }
+        }
+
+        stage('Build, Test & Coverage') {
+            steps {
+                echo 'Building project and running tests...'
+                sh 'mvn -f complete/pom.xml clean verify'
+            }
+        }
+
+        stage('Publish JaCoCo HTML Report') {
+            steps {
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'complete/target/site/jacoco',
+                    reportFiles: 'index.html',
+                    reportName: 'JaCoCo HTML Report'
+                ])
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Running SonarQube analysis...'
+                withSonarQubeEnv('mysonarqube') {
+                   sh '''
+                        mvn -f complete/pom.xml sonar:sonar \
+                        -Dsonar.projectKey=wezvatech \
+                        -Dsonar.projectName=wezvatech \
+                        -Dsonar.coverage.jacoco.xmlReportPaths=complete/target/site/jacoco/jacoco.xml
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+    } // end of stages
+} // end of pipeline
+
