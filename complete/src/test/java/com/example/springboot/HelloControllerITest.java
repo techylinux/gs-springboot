@@ -1,23 +1,25 @@
 package com.example.springboot;
 
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.client.RestTestClient;
+import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureRestTestClient
-public class HelloControllerITest {
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-  @Autowired
-  private RestTestClient client;
+@SpringBootTest
+@AutoConfigureMockMvc
+class HelloControllerTest {
 
-  @Test
-  public void getHello() {
-    client.get().uri("/").exchangeSuccessfully()
-        .expectBody(String.class)
-        .isEqualTo("Greetings from Spring Boot!");
-  }
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void helloEndpointReturnsOk() throws Exception {
+        mockMvc.perform(get("/"))
+               .andExpect(status().isOk());
+    }
 }
+

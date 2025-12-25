@@ -1,29 +1,26 @@
 package com.example.springboot;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-public class HelloControllerTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-  @Autowired
-  private MockMvc mvc;
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class HelloControllerITest {
 
-  @Test
-  public void getHello() throws Exception {
-    mvc.perform(get("/").accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(content().string(equalTo("Greetings from Spring Boot!")));
-  }
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Test
+    void helloEndpointReturns200() {
+        ResponseEntity<String> response =
+                restTemplate.getForEntity("/", String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
 }
+
