@@ -38,9 +38,9 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube analysis...'
+                echo 'Running SonarQube analysis'
                 withSonarQubeEnv('mysonarqube') {
-                   sh '''
+                    sh '''
                         mvn -f complete/pom.xml sonar:sonar \
                         -Dsonar.projectKey=wezvatech \
                         -Dsonar.projectName=wezvatech \
@@ -58,6 +58,35 @@ pipeline {
             }
         }
 
+        stage('Build Docker Image') {
+            steps {
+                echo "Building and pushing Docker image..."
+                script {
+                    // Get Maven project version
+                    def version = sh(
+                        script: "mvn -f complete/pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout",
+                        returnStdout: true
+                    ).trim()
+                    echo "Maven Version: ${version}"
+
+                    // Get the JAR file dynamically
+                    def jarName = sh(
+                        script: "ls complete/target/*.jar | grep -v 'original' | xargs -n 1 basename",
+                        returnStdout: true
+                    ).trim()
+                    echo "Using JAR: ${jarName}"
+
+                    // Build and push Docker image using environment variables
+                    docker.withRegistry('', env.registrycredential) {
+                        def imageTag = "${env.registry}:${version}"
+                        def myImage = docker.build(imageTag, "--build-arg JAR_FILE=${jarName} complete/")
+                        myImage.push()
+                        echo "Pushed Docker image: ${imageTag}"
+                    }
+                }
+            }
+        }
+
     } // end of stages
-} // end of pipeline
+}
 
