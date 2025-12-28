@@ -1,0 +1,74 @@
+pipeline {
+    agent { label 'slaves' }
+
+    environment {
+        AWS_REGION = "ap-south-1"
+        AWS_ACCOUNT_ID = "335660923091"
+        ECR_REPO = "springboot-app"
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        AWS_CREDS = "aws-ecr-creds"
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                git url: "git@github.com:techylinux/gs-springboot.git", branch: "main"
+            }
+        }
+
+        stage('Build, Test & Coverage') {
+            steps {
+                sh 'mvn -f complete/pom.xml clean verify'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('mysonarqube') {
+                    sh '''
+                        mvn -f complete/pom.xml sonar:sonar \
+                        -Dsonar.projectKey=wezvatech \
+                        -Dsonar.projectName=wezvatech \
+                        -Dsonar.coverage.jacoco.xmlReportPaths=complete/target/site/jacoco/jacoco.xml
+                    '''
+                }
+            }
+        }
+     stage('Build & Push Docker Image to AWS ECR') {
+            steps {
+                script {
+
+                    def version = sh(
+                        script: "mvn -f complete/pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout",
+                        returnStdout: true
+                    ).trim()
+
+                    def jarName = sh(
+                        script: "ls complete/target/*.jar | grep -v 'original' | xargs -n 1 basename",
+                        returnStdout: true
+                    ).trim()
+
+                    withAWS(credentials: "${AWS_CREDS}", region: "${AWS_REGION}") {
+
+                        sh """
+                        aws ecr get-login-password --region ${AWS_REGION} \
+                        | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                        """
+
+                        def imageTag = "${ECR_REGISTRY}/${ECR_REPO}:${version}"
+
+                        def image = docker.build(
+                            imageTag,
+                            "--build-arg JAR_FILE=${jarName} complete/"
+                        )
+
+                        image.push()
+
+                        echo "Image pushed to AWS ECR: ${imageTag}"
+                    }
+                }
+            }
+        }
+    }
+}
